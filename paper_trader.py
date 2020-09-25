@@ -1,5 +1,6 @@
 import requests
 from typing import Optional
+import json
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -18,7 +19,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-API_KEY = 
+API_KEY = ''
 BASE_URL = 'https://sandbox.iexapis.com/'
 params = {'token': API_KEY}
 
@@ -53,8 +54,11 @@ def get_watchlist(user_id):
 
 @app.get('/search-stocks/{symbolQuery}')
 def search_stocks(symbolQuery):
+    with open('./data/stock_db.json', 'r') as file:
+        data = json.load(file)
+
     search_result = []
-    for stock in Stock_db:
-        if stock['symbol'] == symbolQuery.upper():
-            search_result.append(stock)
+    for dict in data:
+        if (symbolQuery.upper() in dict['symbol']):
+            search_result.append(dict)
     return JSONResponse(content=search_result)
