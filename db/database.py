@@ -1,28 +1,21 @@
-import json
-from pymongo import MongoClient
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
-
-from paper_trader.models import InsertModel, UpdateModel, DocumentModel
-from paper_trader.core.config import DB_NAME, DB_PORT, DB_URL
-
-
-app = FastAPI()
-
+import psycopg2
+from paper_trader.core.config import DB_NAME, DB_UN, DB_PW
 
 def get_database():
     try:
-        client = MongoClient(DB_URL, DB_PORT)
-        db = client[DB_NAME]
+        db = psycopg2.connect(
+            dbname=DB_NAME,
+            user=DB_UN,
+            password=DB_PW
+        )
         return db
-    except:
-        raise HTTPException(status_code=404, detail='Failed to connect to database')
+    except Exception as err:
+        raise err
 
-
-def get_collection(collection_name):
+def get_cursor():
     try:
-        database = get_database()
-        collection = database[collection_name]
-        return collection
-    except:
-        raise HTTPException(status_code=404, detail='Failed to get collection')
+        db = get_database()
+        cursor = db.cursor()
+        return cursor
+    except Exception as err:
+        raise err

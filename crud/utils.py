@@ -1,6 +1,5 @@
 from pymongo.collection import Collection
 from paper_trader.models import DocumentModel, SearchModel
-from paper_trader.db.database import get_collection
 
 
 def get_doc(document_model: DocumentModel):

@@ -1,3 +1,4 @@
+from paper_trader.crud.securities import get_price, get_quantity
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -9,52 +10,49 @@ router = APIRouter()
 @router.get('/securities/get-watchlist/{user_name}')
 def get_watchlist(user_name):
     # TODO: authentication
-    projection = {'_id': 0, 'user_name': 0, 'list_name': 0}
-    filter = {'user_name': user_name}
-    data = {'collection_name': "watchlists", "filter": filter, "projection": projection}
+    filters = {
+        'user_name': user_name,
+        'table_name': 'watchlist'
+    }
     try: 
-        watchlists = crud.securities.get_doc(data)
+        watchlists = crud.securities.get_securities(filters)
         watchlists_combined = {}
-        for list in watchlists:
-            watchlists_combined.update(list['stocks'])
+        for tuple in watchlists:
+            price = get_price(tuple[0], tuple[1])
+            watchlists_combined.update({tuple[0]: price})
         return JSONResponse(content=watchlists_combined)
     except:
         raise HTTPException(404, detail='Failed to retrieve watchlists')
-
-#     # for symbol in watchlist:
-#     #     r = requests.get('https://sandbox.iexapis.com/stable/stock/' + symbol + '/price', params={'token': API_KEY})
-#     #     watchlist[symbol] = float(r.text)
-
-#     # watchlist = Watchlists[0]['stocks']
 
 
 @router.get('/securities/get-owned-stocks/{user_name}')
 def get_owned_stocks(user_name):
     # TODO: authentication
-    projection = {'_id': 0, 'user_name': 0}
-    filter = {'user_name': user_name}
-    data = {'collection_name': "owned_securities", "filter": filter, "projection": projection}
+    filters = {
+        'user_name': user_name,
+        'table_name': 'owned_securities'
+    }    
     try: 
-        owned_stocks = crud.securities.get_doc(data)
+        owned_stocks = crud.securities.get_securities(filters)
         owned_sec_combined = {}
-        for list in owned_stocks:
-            owned_sec_combined.update(list['stocks'])
+        for tuple in owned_stocks:
+            quantity = get_quantity(user_name, tuple[0], tuple[1])
+            price = get_price(tuple[0], tuple[1])
+            owned_sec_combined.update({tuple[0]: [price, quantity]})
         return JSONResponse(content=owned_sec_combined)
     except:
         raise HTTPException(404, detail='Failed to retrieve watchlists')
 
-    # for symbol in watchlist:
-    #     r = requests.get('https://sandbox.iexapis.com/stable/stock/' + symbol + '/price', params={'token': API_KEY})
-    #     watchlist[symbol] = float(r.text)
-
 
 @router.get('/securities/search/{search_term}')
 def search_stocks(search_term):
-    projection = {'_id': 0}
-    data = {'collection_name': "public_securities", 'search_term': search_term, 'projection': projection}
     try: 
-        found_securities = crud.securities.search_docs(data)
-        return JSONResponse(content=found_securities)
+        securities_list = []
+        search_results = crud.securities.search(search_term)
+        for tuple in search_results:
+            securities_list.append((tuple[0], tuple[1], float(tuple[2]), tuple[3]))
+        print(securities_list)
+        return JSONResponse(content=securities_list)
     except:
         raise HTTPException(404, detail='Search failed')
 

@@ -3,37 +3,65 @@ import re
 from fastapi.responses import JSONResponse
 
 from paper_trader.models import DocumentModel, SearchModel, UpdateModel, InsertModel
-from paper_trader.db.database import get_collection
+from paper_trader.db.database import get_cursor
 from . import utils
 
-
-# def count_docs(document_model: DocumentModel):
-#     collection = get_collection(document_model)
-#     request = collection.count_documents(document_model.filter)
     
 
-def get_doc(document_model: DocumentModel):
-    doc_list = []
-    collection = get_collection(document_model['collection_name'])
-    
-    request = collection.find(document_model['filter'], projection=document_model['projection'])
-    for item in request:
-        doc_list.append(item)
-    return doc_list
+def get_securities(filters):
+    db_cursor = get_cursor()
+    query = f"""
+        SELECT security_symbol, exchange_name 
+        FROM {filters['table_name']}
+        WHERE {filters['table_name']}.user_id = (SELECT user_id FROM users WHERE users.user_name = '{filters['user_name']}')
+        """
+    db_cursor.execute(query)
+    results = db_cursor.fetchall()
+    return results
 
 
-def search_docs(search_model: SearchModel):
-    doc_list = []
-    query_lower = search_model['search_term'].lower()
-    query_upper = search_model['search_term'].upper()
-    regex = re.compile(r'^.*('+query_lower + r')|('+query_upper+r').*')
-    filter = {'$or': [ {'symbol': {'$regex': regex}}, {'name': {'$regex': regex}} ] }
-    collection = get_collection(search_model['collection_name'])
-    results = collection.find(filter=filter, projection=search_model['projection'])
-    for item in results:
-        print(item)
-        doc_list.append(item)
-    return doc_list
+def get_price(symbol, exchange):
+    db_cursor = get_cursor()
+    query = f"""
+        SELECT security_value
+        FROM public_securities
+        WHERE public_securities.security_symbol = '{symbol}' AND public_securities.exchange_name = '{exchange}'
+        """
+    db_cursor.execute(query)
+    result = db_cursor.fetchone()
+    result_float = float(result[0])
+    return result_float
+
+
+def get_quantity(user_name, symbol, exchange):
+    db_cursor = get_cursor()
+    query = f"""
+        SELECT quantity
+        FROM owned_securities
+        WHERE 
+            owned_securities.security_symbol = '{symbol}' AND 
+            owned_securities.exchange_name = '{exchange}' AND
+            owned_securities.user_id = (SELECT user_id FROM users WHERE users.user_name = '{user_name}')
+        """
+    db_cursor.execute(query)
+    result = db_cursor.fetchone()
+    return result[0]
+
+
+def search(search_term):
+    search_term_upper = search_term.upper()
+
+    db_cursor = get_cursor()
+    query = f"""
+        SELECT security_symbol, security_name, security_value, exchange_name
+        FROM public_securities
+        WHERE 
+            UPPER(public_securities.security_symbol) LIKE '%{search_term_upper}%' OR
+            UPPER(public_securities.security_name) LIKE '%{search_term_upper}%'
+        """
+    db_cursor.execute(query)
+    result = db_cursor.fetchall()
+    return result
 
 
 def update(update_model:UpdateModel):
