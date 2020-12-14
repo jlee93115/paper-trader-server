@@ -5,12 +5,13 @@ import re
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from paper_trader.routers import securities
+from paper_trader.routers import securities, watchlist
 
 app = FastAPI()
 
 # app.include_router(users.router)
 app.include_router(securities.router)
+app.include_router(watchlist.router)
 
 
 app.add_middleware(

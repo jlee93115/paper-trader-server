@@ -12,10 +12,17 @@ def get_database():
     except Exception as err:
         raise err
 
+
 def get_cursor():
     try:
         db = get_database()
         cursor = db.cursor()
-        return cursor
+        return db, cursor
     except Exception as err:
         raise err
+
+
+def commit_to_database(db, cursor):
+    db.commit()
+    cursor.close()
+    db.close()

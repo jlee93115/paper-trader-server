@@ -1,4 +1,3 @@
-from paper_trader.crud.securities import get_price, get_quantity
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -7,25 +6,7 @@ from paper_trader.core.config import API_KEY, BASE_URL
 router = APIRouter()
 
 
-@router.get('/securities/get-watchlist/{user_name}')
-def get_watchlist(user_name):
-    # TODO: authentication
-    filters = {
-        'user_name': user_name,
-        'table_name': 'watchlist'
-    }
-    try: 
-        watchlists = crud.securities.get_securities(filters)
-        watchlists_combined = {}
-        for tuple in watchlists:
-            price = get_price(tuple[0], tuple[1])
-            watchlists_combined.update({tuple[0]: price})
-        return JSONResponse(content=watchlists_combined)
-    except:
-        raise HTTPException(404, detail='Failed to retrieve watchlists')
-
-
-@router.get('/securities/get-owned-stocks/{user_name}')
+@router.get('/securities/get/{user_name}')
 def get_owned_stocks(user_name):
     # TODO: authentication
     filters = {
@@ -33,79 +14,73 @@ def get_owned_stocks(user_name):
         'table_name': 'owned_securities'
     }    
     try: 
-        owned_stocks = crud.securities.get_securities(filters)
+        owned_stocks = crud.utils.get_securities(filters)
         owned_sec_combined = {}
         for tuple in owned_stocks:
-            quantity = get_quantity(user_name, tuple[0], tuple[1])
-            price = get_price(tuple[0], tuple[1])
-            owned_sec_combined.update({tuple[0]: [price, quantity]})
+            if tuple[2] in owned_sec_combined:
+                total_quantity = owned_sec_combined[tuple[2]][1] + tuple[5]
+                total_value = owned_sec_combined[tuple[2]][0] * owned_sec_combined[tuple[2]][1] + float(tuple[4]) * tuple[5]
+                avg_value = total_value / total_quantity
+            else:
+                total_quantity = tuple[5]
+                avg_value = float(tuple[4])
+            owned_sec_combined.update({tuple[2]: [avg_value, total_quantity, tuple[3]]})
         return JSONResponse(content=owned_sec_combined)
     except:
         raise HTTPException(404, detail='Failed to retrieve watchlists')
 
 
-@router.get('/securities/search/{search_term}')
-def search_stocks(search_term):
+@router.get('/securities/search')
+def search_stocks(q):
     try: 
         securities_list = []
-        search_results = crud.securities.search(search_term)
+        search_results = crud.securities.search(q)
         for tuple in search_results:
             securities_list.append((tuple[0], tuple[1], float(tuple[2]), tuple[3]))
-        print(securities_list)
         return JSONResponse(content=securities_list)
     except:
         raise HTTPException(404, detail='Search failed')
 
 
 @router.post('/securities/buy/{user_name}')
-def buy_security(user_name, symbol: str = '', price: float = 0, buy_quantity: int = 0):
+def buy_security(user_name, symbol: str = '', price: float = 0, buy_quantity: int = 0, exchange_name: str =''):
     if symbol:
-        projection = {'_id': 0, 'user_name': 0}
-        filter = {'user_name': user_name}
-        data = {'collection_name': "owned_securities", "filter": filter, "projection": projection}
+        data = {
+            'user_name': user_name, 
+            'security_symbol': symbol, 
+            'exchange_name': exchange_name,
+            'quantity': buy_quantity,
+            'price': price
+        }
         try: 
-            list_of_securities = crud.securities.get_doc(data)
-            securities_dict = list_of_securities[0]['stocks']
-            symbol_upper = symbol.upper()
-            if symbol_upper in securities_dict.keys():
-                # increase count of already owned security
-                securities_dict[symbol_upper][0] = securities_dict[symbol_upper][0] + buy_quantity
-            else:
-                # insert new security to owned list
-                securities_dict.update({symbol_upper: [buy_quantity, price]})
-            content = {'stocks': securities_dict}
-            data = {'collection_name': "owned_securities", "filter": filter, "content": content}
-            result = crud.securities.update(data)
+            crud.securities.insert_transaction(data)
+            result = {'inserted_data': data}
             return JSONResponse(content=result)
         except:
             raise HTTPException(404, detail='Failed to purchase security')
 
 
 @router.post('/securities/sell/{user_name}')
-def sell_security(user_name, symbol: str = '', price: float = 0, sell_quantity: int = 0):
+def sell_security(user_name, symbol: str = '', price: float = 0, sell_quantity: int = 0, exchange_name: str = ''):
     if symbol:
-        projection = {'_id': 0, 'user_name': 0}
-        filter = {'user_name': user_name}
-        data = {'collection_name': "owned_securities", "filter": filter, "projection": projection}
+        data = {
+            'user_name': user_name, 
+            'security_symbol': symbol, 
+            'exchange_name': exchange_name,
+            'quantity': -(sell_quantity),
+            'price': price,
+            'table_name': 'owned_securities'
+        }
         try: 
-            list_of_securities = crud.securities.get_doc(data)
-            securities_dict = list_of_securities[0]['stocks']
-            symbol_upper = symbol.upper()
-
-            original_quantity = securities_dict[symbol_upper][0]
-            
+            original_quantity = crud.utils.get_quantity(user_name, symbol, exchange_name)
             if original_quantity < sell_quantity:
-                return JSONResponse(content='You can\'t sell more than what you own!')
+                raise HTTPException(422, detail='Cannot sell more than you own')
 
-            # decrement count of already owned security
-            if original_quantity > sell_quantity:
-                securities_dict[symbol_upper][0] = securities_dict[symbol_upper][0] - sell_quantity
-            elif original_quantity == sell_quantity:
-                del securities_dict[symbol_upper]
+            crud.securities.insert_transaction(data)
+            if original_quantity == sell_quantity:
+                crud.utils.delete_security(data)
             
-            content = {'stocks': securities_dict}
-            data = {'collection_name': "owned_securities", "filter": filter, "content": content}
-            result = crud.securities.update(data)
+            result = {'deleted_data': data}
             return JSONResponse(content=result)
         except:
             raise HTTPException(404, detail='Failed to sell security')
