@@ -1,7 +1,3 @@
-import re
-
-from fastapi.responses import JSONResponse
-
 from paper_trader.models import DocumentModel, SearchModel, UpdateModel, InsertModel
 from paper_trader.db.database import get_cursor, commit_to_database
 from . import utils
