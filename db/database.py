@@ -1,5 +1,6 @@
 import psycopg2
 from paper_trader.core.config import DB_NAME, DB_UN, DB_PW
+import psycopg2.extras
 
 def get_database():
     try:
@@ -16,7 +17,7 @@ def get_database():
 def get_cursor():
     try:
         db = get_database()
-        cursor = db.cursor()
+        cursor = db.cursor(cursor_factory=psycopg2.extras.DictCursor)
         return db, cursor
     except Exception as err:
         raise err
