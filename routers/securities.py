@@ -1,16 +1,27 @@
-from fastapi import APIRouter, HTTPException
+from paper_trader.models import Token
+from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import JSONResponse
 
 from paper_trader import crud
-from paper_trader.core.config import API_KEY, BASE_URL
+from paper_trader.core.authentication import is_authenticated
+from paper_trader.models import OrderModel
+
 router = APIRouter()
 
 
-@router.get('/securities/get/{user_name}')
-def get_owned_stocks(user_name):
-    # TODO: authentication
+# Axios only allows request body with POST/PUT requests
+@router.post('/securities/owned')
+def get_owned_stocks(token: Token):
+    user = is_authenticated(token.access_token)
+    if user is None:
+        raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
     filters = {
-        'user_name': user_name,
+        'username': user['username'],
         'table_name': 'owned_securities'
     }    
     try: 
@@ -42,15 +53,23 @@ def search_stocks(q):
         raise HTTPException(404, detail='Search failed')
 
 
-@router.post('/securities/buy/{user_name}')
-def buy_security(user_name, symbol: str = '', price: float = 0, buy_quantity: int = 0, exchange_name: str =''):
-    if symbol:
+@router.post('/securities/buy')
+def buy(order: OrderModel):
+    user = is_authenticated(order.token)
+    if user is None:
+        raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    if order.symbol:
         data = {
-            'user_name': user_name, 
-            'security_symbol': symbol, 
-            'exchange_name': exchange_name,
-            'quantity': buy_quantity,
-            'price': price
+            'username': user['username'],
+            'security_symbol': order.symbol,
+            'exchange_name': order.exchange,
+            'quantity': order.quantity,
+            'price': order.price
         }
         try: 
             crud.securities.insert_transaction(data)
@@ -60,24 +79,32 @@ def buy_security(user_name, symbol: str = '', price: float = 0, buy_quantity: in
             raise HTTPException(404, detail='Failed to purchase security')
 
 
-@router.post('/securities/sell/{user_name}')
-def sell_security(user_name, symbol: str = '', price: float = 0, sell_quantity: int = 0, exchange_name: str = ''):
-    if symbol:
+@router.post('/securities/sell')
+def sell(order: OrderModel):
+    user = is_authenticated(order['token'])
+    if user is None:
+        raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    if order['symbol']:
         data = {
-            'user_name': user_name, 
-            'security_symbol': symbol, 
-            'exchange_name': exchange_name,
-            'quantity': -(sell_quantity),
-            'price': price,
+            'username': user['username'],
+            'security_symbol': order['symbol'],
+            'exchange_name': order['exchange'],
+            'quantity': -(order['quantity']),
+            'price': order['price'],
             'table_name': 'owned_securities'
         }
         try: 
-            original_quantity = crud.utils.get_quantity(user_name, symbol, exchange_name)
-            if original_quantity < sell_quantity:
-                raise HTTPException(422, detail='Cannot sell more than you own')
+            original_quantity = crud.utils.get_quantity(user['username'], order['symbol'], order['exchange'])
+            if original_quantity < order['quantity']:
+                raise HTTPException(422, detail='You cannot sell more than you own')
 
             crud.securities.insert_transaction(data)
-            if original_quantity == sell_quantity:
+            if original_quantity == order['quantity']:
                 crud.utils.delete_security(data)
             
             result = {'deleted_data': data}

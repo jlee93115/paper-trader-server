@@ -1,17 +1,26 @@
-from fastapi import APIRouter, HTTPException
+from paper_trader.models import Token
+from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import JSONResponse
 
 from paper_trader import crud
-from paper_trader.core.config import API_KEY, BASE_URL
+from paper_trader.core.authentication import is_authenticated
+from paper_trader.models import OrderModel
 
 router = APIRouter()
 
+# Axios only allows request body with POST/PUT requests
+@router.post('/watchlist/watched')
+def get_watchlist(token: Token):
+    user = is_authenticated(token.access_token)
+    if user is None:
+        raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
-@router.get('/watchlist/get/{user_name}')
-def get_watchlist(user_name):
-    # TODO: authentication
     filters = {
-        'user_name': user_name,
+        'username': user['username'],
         'table_name': 'watchlist'
     }
     try: 
@@ -25,23 +34,31 @@ def get_watchlist(user_name):
         raise HTTPException(404, detail='Failed to retrieve watchlists')
 
 
-@router.post('/watchlist/add/{user_name}')
-def add_to_watchlist(user_name, symbol: str = '', exchange_name: str =''):
-    if symbol:
+@router.post('/watchlist/watch')
+def watch(order: OrderModel):
+    user = is_authenticated(order.token)
+    if user is None:
+        raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    if order.symbol:
         try:
             filters = {
-                'user_name': user_name,
+                'username': user['username'],
                 'table_name': 'watchlist',
-                'security_symbol': symbol,
-                'exchange_name': exchange_name
+                'security_symbol': order.symbol,
+                'exchange_name': order.exchange
             }
             watchlist = crud.utils.get_one_security(filters)
 
             if (len(watchlist) == 0):
                 params = {
-                    'user_name': user_name, 
-                    'security_symbol': symbol, 
-                    'exchange_name': exchange_name,
+                    'username': user['username'],
+                    'security_symbol': order.symbol,
+                    'exchange_name': order.exchange,
                 }
                 crud.watchlist.insert_security(params)
                 result = {'inserted_data': params}
@@ -50,13 +67,21 @@ def add_to_watchlist(user_name, symbol: str = '', exchange_name: str =''):
             raise HTTPException(404, detail='Failed to purchase security')
 
 
-@router.post('/watchlist/delete/{user_name}')
-def delete_security(user_name, symbol: str = '', exchange_name: str = ''):
-    if symbol:
+@router.post('/watchlist/unwatch')
+def unwatch(order: OrderModel):
+    user = is_authenticated(order.token)
+    if user is None:
+        raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    if order.symbol:
         data = {
-            'user_name': user_name, 
-            'security_symbol': symbol, 
-            'exchange_name': exchange_name,
+            'username': user['username'],
+            'security_symbol': order.symbol,
+            'exchange_name': order.exchange,
             'table_name': 'watchlist'
         }
         try: 
