@@ -34,3 +34,10 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+
+class OrderModel(BaseModel):
+    token: str
+    symbol: str
+    exchange: str
+    quantity: int = 0
+    price: float = 0
