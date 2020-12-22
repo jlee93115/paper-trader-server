@@ -12,7 +12,7 @@ def get_securities(filters):
     query = f"""
         SELECT *
         FROM {filters['table_name']}
-        WHERE {filters['table_name']}.user_name = '{filters['user_name']}'
+        WHERE {filters['table_name']}.username = '{filters['username']}'
         """
     db_cursor.execute(query)
     results = db_cursor.fetchall()
@@ -24,7 +24,7 @@ def get_one_security(filters):
     query = f"""
         SELECT *
         FROM {filters['table_name']}
-        WHERE {filters['table_name']}.user_name = '{filters['user_name']}' AND
+        WHERE {filters['table_name']}.username = '{filters['username']}' AND
             {filters['table_name']}.security_symbol = '{filters['security_symbol']}' AND
             {filters['table_name']}.exchange_name = '{filters['exchange_name']}'            
         """
@@ -46,7 +46,7 @@ def get_price(symbol, exchange):
     return result_float
 
 
-def get_quantity(user_name, symbol, exchange):
+def get_quantity(username, symbol, exchange):
     db, db_cursor = get_cursor()
     query = f"""
         SELECT quantity
@@ -54,7 +54,7 @@ def get_quantity(user_name, symbol, exchange):
         WHERE 
             owned_securities.security_symbol = '{symbol}' AND 
             owned_securities.exchange_name = '{exchange}' AND
-            owned_securities.user_name = '{user_name}'
+            owned_securities.username = '{username}'
         """
     db_cursor.execute(query)
     result = db_cursor.fetchone()
@@ -66,7 +66,7 @@ def delete_security(params):
     query = f"""
         DELETE FROM {params['table_name']}
         WHERE
-            {params['table_name']}.user_name = '{params['user_name']}' AND
+            {params['table_name']}.username = '{params['username']}' AND
             {params['table_name']}.security_symbol = '{params['security_symbol']}' AND
             {params['table_name']}.exchange_name = '{params['exchange_name']}'
         """

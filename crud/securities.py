@@ -36,8 +36,8 @@ def search(search_term):
 def insert_transaction(params):
     db, db_cursor = get_cursor()
     query = f"""
-        INSERT INTO transactions (user_name, security_symbol, exchange_name, price, quantity)
-        VALUES ('{params['user_name']}', '{params['security_symbol']}', '{params['exchange_name']}', {params['price']}, {params['quantity']})
+        INSERT INTO transactions (username, security_symbol, exchange_name, price, quantity)
+        VALUES ('{params['username']}', '{params['security_symbol']}', '{params['exchange_name']}', {params['price']}, {params['quantity']})
         """
     db_cursor.execute(query)
     commit_to_database(db, db_cursor)
