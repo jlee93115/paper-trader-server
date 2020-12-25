@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import JSONResponse
 
 from paper_trader import crud
-from paper_trader.core.authentication import is_authenticated
+from paper_trader.core.authentication import get_current_user
 from paper_trader.models import OrderModel
 
 router = APIRouter()
@@ -11,7 +11,7 @@ router = APIRouter()
 # Axios only allows request body with POST/PUT requests
 @router.post('/watchlist/watched')
 def get_watchlist(token: Token):
-    user = is_authenticated(token.access_token)
+    user = get_current_user(token.access_token)
     if user is None:
         raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -19,24 +19,20 @@ def get_watchlist(token: Token):
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    filters = {
-        'username': user['username'],
-        'table_name': 'watchlist'
-    }
     try: 
-        watchlists = crud.utils.get_securities(filters)
-        watchlists_combined = {}
-        for tuple in watchlists:
-            price = crud.utils.get_price(tuple[2], tuple[3])
-            watchlists_combined.update({tuple[2]: [price, tuple[3]]})
-        return JSONResponse(content=watchlists_combined)
+        results = crud.watchlist.get_watched_securities(user['username'])
+        watchlist = {}
+        for stock in results:
+            price = crud.utils.get_price(stock['security_symbol'], stock['exchange_name'])
+            watchlist.update({stock['security_symbol']: [price, stock['exchange_name']]})
+        return JSONResponse(content=watchlist)
     except:
         raise HTTPException(404, detail='Failed to retrieve watchlists')
 
 
 @router.post('/watchlist/watch')
 def watch(order: OrderModel):
-    user = is_authenticated(order.token)
+    user = get_current_user(order.token)
     if user is None:
         raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -44,32 +40,24 @@ def watch(order: OrderModel):
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    if order.symbol:
-        try:
-            filters = {
+    try:
+        watchlist = crud.utils.get_one_security(user['username'], 'watchlist', order.symbol, order.exchange)
+        if (len(watchlist) == 0):
+            crud.watchlist.insert_security(user['username'], order.symbol, order.exchange)
+            data = {
                 'username': user['username'],
-                'table_name': 'watchlist',
                 'security_symbol': order.symbol,
-                'exchange_name': order.exchange
+                'exchange_name': order.exchange,
             }
-            watchlist = crud.utils.get_one_security(filters)
-
-            if (len(watchlist) == 0):
-                params = {
-                    'username': user['username'],
-                    'security_symbol': order.symbol,
-                    'exchange_name': order.exchange,
-                }
-                crud.watchlist.insert_security(params)
-                result = {'inserted_data': params}
-                return JSONResponse(content=result)
-        except:
-            raise HTTPException(404, detail='Failed to purchase security')
+            result = {'inserted_data': data}
+            return JSONResponse(content=result)
+    except:
+        raise HTTPException(404, detail='Failed to add security to watchlist')
 
 
 @router.post('/watchlist/unwatch')
 def unwatch(order: OrderModel):
-    user = is_authenticated(order.token)
+    user = get_current_user(order.token)
     if user is None:
         raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

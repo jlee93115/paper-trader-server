@@ -3,6 +3,20 @@ from paper_trader.db.database import get_cursor, commit_to_database
 from . import utils
 
 
+def get_owned_securities(username: str, table_name: str = 'owned_securities', order_by: str = 'security_symbol', order: str = 'ASC' ):
+    db, db_cursor = get_cursor()
+    query = f"""
+        SELECT AVG(price), SUM(quantity), security_symbol, exchange_name
+        FROM {table_name}
+        WHERE {table_name}.username = '{username}'
+        GROUP BY security_symbol, exchange_name
+        ORDER BY {order_by} {order}
+        """
+    db_cursor.execute(query)
+    results = db_cursor.fetchall()
+    return results
+
+
 def get_purchase_value(symbol, exchange):
     db, db_cursor = get_cursor()
     query = f"""

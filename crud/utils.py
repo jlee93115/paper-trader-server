@@ -5,28 +5,15 @@ from fastapi.responses import JSONResponse
 from paper_trader.models import DocumentModel, SearchModel, UpdateModel, InsertModel
 from paper_trader.db.database import get_cursor, commit_to_database
 from . import utils
-    
 
-def get_securities(filters):
+def get_one_security(username: str, table_name: str, security_symbol: str, exchange_name: str):
     db, db_cursor = get_cursor()
     query = f"""
         SELECT *
-        FROM {filters['table_name']}
-        WHERE {filters['table_name']}.username = '{filters['username']}'
-        """
-    db_cursor.execute(query)
-    results = db_cursor.fetchall()
-    return results
-
-
-def get_one_security(filters):
-    db, db_cursor = get_cursor()
-    query = f"""
-        SELECT *
-        FROM {filters['table_name']}
-        WHERE {filters['table_name']}.username = '{filters['username']}' AND
-            {filters['table_name']}.security_symbol = '{filters['security_symbol']}' AND
-            {filters['table_name']}.exchange_name = '{filters['exchange_name']}'            
+        FROM {table_name}
+        WHERE {table_name}.username = '{username}' AND
+            {table_name}.security_symbol = '{security_symbol}' AND
+            {table_name}.exchange_name = '{exchange_name}'            
         """
     db_cursor.execute(query)
     results = db_cursor.fetchall()
