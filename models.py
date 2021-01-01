@@ -2,11 +2,14 @@ from typing import Optional, Dict
 
 from pydantic import BaseModel
 
-class User(BaseModel):
+class UserModel(BaseModel):
+    user_id: int
+    username: str
     first_name: str
     last_name: str
-    username: str
     email: str
+    initial_funds: float
+    current_funds: float
 
 class DocumentModel(BaseModel):
     collection_name: str
@@ -36,7 +39,6 @@ class TokenData(BaseModel):
     username: Optional[str] = None
 
 class OrderModel(BaseModel):
-    token: str
     symbol: str
     exchange: str
     quantity: int = 0
