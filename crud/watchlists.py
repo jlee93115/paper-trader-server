@@ -2,7 +2,6 @@ from fastapi.responses import JSONResponse
 
 from paper_trader.models import DocumentModel, SearchModel, UpdateModel, InsertModel
 from paper_trader.db.database import get_cursor, commit_to_database
-from . import utils
 
 def get_watched_securities(username: str, table_name: str = 'watchlist', order_by: str = 'security_symbol', order: str = 'ASC' ):
     db, db_cursor = get_cursor()
