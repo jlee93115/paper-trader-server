@@ -6,14 +6,14 @@ from paper_trader.models import DocumentModel, SearchModel, UpdateModel, InsertM
 from paper_trader.db.database import get_cursor, commit_to_database
 from . import utils
 
-def get_one_security(username: str, table_name: str, security_symbol: str, exchange_name: str):
+def get_one_security(username: str, table_name: str, security_symbol: str, exchange: str):
     db, db_cursor = get_cursor()
     query = f"""
         SELECT *
         FROM {table_name}
         WHERE {table_name}.username = '{username}' AND
             {table_name}.security_symbol = '{security_symbol}' AND
-            {table_name}.exchange_name = '{exchange_name}'            
+            {table_name}.exchange_name = '{exchange}'
         """
     db_cursor.execute(query)
     results = db_cursor.fetchall()
@@ -36,10 +36,10 @@ def get_price(symbol, exchange):
 def get_quantity(username, symbol, exchange):
     db, db_cursor = get_cursor()
     query = f"""
-        SELECT quantity
+        SELECT SUM(quantity) AS quantity
         FROM owned_securities
-        WHERE 
-            owned_securities.security_symbol = '{symbol}' AND 
+        WHERE
+            owned_securities.security_symbol = '{symbol}' AND
             owned_securities.exchange_name = '{exchange}' AND
             owned_securities.username = '{username}'
         """
@@ -47,16 +47,3 @@ def get_quantity(username, symbol, exchange):
     result = db_cursor.fetchone()
     return result[0]
 
-
-def delete_security(params):
-    db, db_cursor = get_cursor()
-    query = f"""
-        DELETE FROM {params['table_name']}
-        WHERE
-            {params['table_name']}.username = '{params['username']}' AND
-            {params['table_name']}.security_symbol = '{params['security_symbol']}' AND
-            {params['table_name']}.exchange_name = '{params['exchange_name']}'
-        """
-    db_cursor.execute(query)
-    commit_to_database(db, db_cursor)
-    return 

@@ -70,3 +70,20 @@ def delete_transaction(table_name: str, transaction_id, username: str, symbol: s
     db_cursor.execute(query)
     commit_to_database(db, db_cursor)
     return
+
+    
+def update_quantity(table_name: str, transaction_id, username: str, symbol: str, exchange: str, new_quantity: int):
+    db, db_cursor = get_cursor()
+    query = f"""
+        UPDATE {table_name}
+        SET quantity = {new_quantity}
+        WHERE
+            {table_name}.username = '{username}' AND
+            {table_name}.security_symbol = '{symbol}' AND
+            {table_name}.exchange_name = '{exchange}' AND
+            {table_name}.transaction_id = {transaction_id}
+        """
+    print(query)
+    db_cursor.execute(query)
+    commit_to_database(db, db_cursor)
+    return
