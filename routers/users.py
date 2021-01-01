@@ -32,16 +32,23 @@ async def login(login_form: OAuth2PasswordRequestForm = Depends()):
     }
     return response
 
-@router.post('/users/authenticated')
-async def isAuthenticated(token: Token):
-    user = get_current_user(token.access_token)
-    if not user:
+@router.get('/users/authenticated')
+async def isAuthenticated(current_user = Depends(get_current_user)):
+    if not current_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token = create_access_token(
-        data={"sub": user['username']}
+        data={"sub": current_user['username']}
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    response = {
+        'access_token': access_token,
+        'token_type': 'bearer',
+        'username': current_user['username'],
+        'first_name': current_user['first_name'],
+        'last_name': current_user['last_name'],
+        'funds': current_user['current_funds']
+    }
+    return response
