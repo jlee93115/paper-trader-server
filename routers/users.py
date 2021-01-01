@@ -1,3 +1,4 @@
+from psycopg2.extensions import JSON
 from paper_trader.models import Token
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.responses import JSONResponse
@@ -28,9 +29,9 @@ async def login(login_form: OAuth2PasswordRequestForm = Depends()):
         'username': user['username'],
         'first_name': user['first_name'],
         'last_name': user['last_name'],
-        'funds': user['current_funds']
+        'funds': float(user['current_funds'])
     }
-    return response
+    return JSONResponse(content=response)
 
 @router.get('/users/authenticated')
 async def isAuthenticated(current_user = Depends(get_current_user)):
@@ -40,15 +41,10 @@ async def isAuthenticated(current_user = Depends(get_current_user)):
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token = create_access_token(
-        data={"sub": current_user['username']}
-    )
     response = {
-        'access_token': access_token,
-        'token_type': 'bearer',
         'username': current_user['username'],
         'first_name': current_user['first_name'],
         'last_name': current_user['last_name'],
-        'funds': current_user['current_funds']
+        'funds': float(current_user['current_funds'])
     }
-    return response
+    return JSONResponse(content=response)
