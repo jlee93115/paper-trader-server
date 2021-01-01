@@ -26,3 +26,17 @@ def insert_security(username: str, security_symbol: str, exchange_name: str):
     db_cursor.execute(query)
     commit_to_database(db, db_cursor)
     return 
+
+
+def delete_security(table_name: str, username: str, symbol: str, exchange: str):
+    db, db_cursor = get_cursor()
+    query = f"""
+        DELETE FROM {table_name}
+        WHERE
+            {table_name}.username = '{username}' AND
+            {table_name}.security_symbol = '{symbol}' AND
+            {table_name}.exchange_name = '{exchange}'
+        """
+    db_cursor.execute(query)
+    commit_to_database(db, db_cursor)
+    return

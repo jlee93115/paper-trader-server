@@ -1,5 +1,5 @@
 from paper_trader.models import Token
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.responses import JSONResponse
 
 from paper_trader import crud
@@ -8,11 +8,9 @@ from paper_trader.models import OrderModel
 
 router = APIRouter()
 
-# Axios only allows request body with POST/PUT requests
-@router.post('/watchlist/watched')
-def get_watchlist(token: Token):
-    user = get_current_user(token.access_token)
-    if user is None:
+@router.get('/watchlists/watched-securities')
+def get_watchlist(current_user = Depends(get_current_user)):
+    if current_user is None:
         raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -20,20 +18,23 @@ def get_watchlist(token: Token):
     )
 
     try: 
-        results = crud.watchlist.get_watched_securities(user['username'])
-        watchlist = {}
+        results = crud.watchlists.get_watched_securities(current_user['username'])
+        watchlist = []
         for stock in results:
             price = crud.utils.get_price(stock['security_symbol'], stock['exchange_name'])
-            watchlist.update({stock['security_symbol']: [price, stock['exchange_name']]})
+            watchlist.append({
+                'symbol': stock['security_symbol'],
+                'price': price,
+                'exchange': stock['exchange_name']
+            })
         return JSONResponse(content=watchlist)
     except:
         raise HTTPException(404, detail='Failed to retrieve watchlists')
 
 
-@router.post('/watchlist/watch')
-def watch(order: OrderModel):
-    user = get_current_user(order.token)
-    if user is None:
+@router.post('/watchlists/watched-securities')
+def add_security_to_watchlist(order: OrderModel, current_user = Depends(get_current_user)):
+    if current_user is None:
         raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -41,11 +42,11 @@ def watch(order: OrderModel):
     )
 
     try:
-        watchlist = crud.utils.get_one_security(user['username'], 'watchlist', order.symbol, order.exchange)
+        watchlist = crud.utils.get_one_security(current_user['username'], 'watchlist', order.symbol, order.exchange)
         if (len(watchlist) == 0):
-            crud.watchlist.insert_security(user['username'], order.symbol, order.exchange)
+            crud.watchlists.insert_security(current_user['username'], order.symbol, order.exchange)
             data = {
-                'username': user['username'],
+                'username': current_user['username'],
                 'security_symbol': order.symbol,
                 'exchange_name': order.exchange,
             }
@@ -55,10 +56,9 @@ def watch(order: OrderModel):
         raise HTTPException(404, detail='Failed to add security to watchlist')
 
 
-@router.post('/watchlist/unwatch')
-def unwatch(order: OrderModel):
-    user = get_current_user(order.token)
-    if user is None:
+@router.delete('/watchlists/watched-securities')
+def remove_security_from_watchlist(order: OrderModel, current_user = Depends(get_current_user)):
+    if current_user is None:
         raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -66,16 +66,21 @@ def unwatch(order: OrderModel):
     )
 
     if order.symbol:
-        data = {
-            'username': user['username'],
-            'security_symbol': order.symbol,
-            'exchange_name': order.exchange,
-            'table_name': 'watchlist'
-        }
         try: 
-            crud.utils.delete_security(data)
+            crud.watchlists.delete_security(
+                'watchlist',
+                current_user['username'],
+                order.symbol, 
+                order.exchange
+            )
             
-            result = {'deleted_data': data}
+            data = {
+                'username': current_user['username'],
+                'security_symbol': order.symbol,
+                'exchange_name': order.exchange,
+                'table_name': 'watchlist'
+            }
+            result = {'removed_security': data}
             return JSONResponse(content=result)
         except:
             raise HTTPException(404, detail='Failed to sell security')
