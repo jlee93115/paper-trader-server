@@ -103,7 +103,7 @@ def sell(order: OrderModel):
                 order_quantity -= security_transactions[0]['quantity']
                 security_transactions.pop(0)
             elif order_quantity < security_transactions[0]['quantity']:
-                crud.utils.update_security(
+                crud.trades.update_quantity(
                     'owned_securities', 
                     security_transactions[0]['transaction_id'], 
                     user['username'], 
