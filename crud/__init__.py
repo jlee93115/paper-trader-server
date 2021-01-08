@@ -1,1 +1,1 @@
-from . import trades, watchlists, utils, users, searches
+from . import trades, watchlists, utils, users, searches, authentication
