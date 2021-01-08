@@ -43,3 +43,6 @@ class OrderModel(BaseModel):
     exchange: str
     quantity: int = 0
     price: float = 0
+
+class LogoutModel(BaseModel):
+    username: str
