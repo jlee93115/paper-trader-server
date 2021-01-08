@@ -83,7 +83,6 @@ def update_quantity(table_name: str, transaction_id, username: str, symbol: str,
             {table_name}.exchange_name = '{exchange}' AND
             {table_name}.transaction_id = {transaction_id}
         """
-    print(query)
     db_cursor.execute(query)
     commit_to_database(db, db_cursor)
     return
